@@ -1,41 +1,47 @@
 # AI議事録アシスタント
 
-音声ファイルから自動的に議事録を作成するStreamlitアプリケーションです。
+商談などの音声データをアップロードすると、AIが自動で文字起こし、議事録作成、多角的な分析を行うStreamlitアプリケーションです。
 
-## 機能
+## 主な機能
 
-- 音声ファイルの文字起こし
-- 商談内容の自動分析
-- 議事録の自動生成
-- レポートの保存と管理
+-   **話者分離付き文字起こし**: `pyannote.audio`と`Whisper`を使用し、誰が何を話したかをタイムスタンプ付きで記録します。
+-   **AIによる議事録・分析レポート生成**: `GPT-4o`が会話内容を分析し、議事録とAIコーチングレポートを自動で作成します。
+-   **対話によるレポート編集**: チャット形式でAIに指示を出し、生成されたレポートを対話的に修正できます。
+-   **レポートの永続化**: 作成したレポートはSQLiteデータベースに保存され、いつでも閲覧・再編集が可能です。
 
-## セットアップ
+## セットアップ手順
 
-### 1. 依存関係のインストール
+1.  **リポジトリをクローン**
+    ```bash
+    git clone [https://github.com/](https://github.com/)[あなたのユーザー名]/[リポジトリ名].git
+    cd [リポジトリ名]
+    ```
 
-```bash
-pip install -r requirements.txt
-```
+2.  **仮想環境の作成と有効化**
+    ```bash
+    python3 -m venv venv
+    source venv/bin/activate
+    ```
 
-### 2. APIキーの設定
+3.  **必要なライブラリのインストール**
+    ```bash
+    pip install -r requirements.txt
+    ```
 
-1. `.streamlit/secrets.toml.example`をコピーして`.streamlit/secrets.toml`にリネーム
-2. 以下のAPIキーを設定：
-   - `HF_TOKEN`: Hugging Faceのトークン
-   - `OPENAI_API_KEY`: OpenAIのAPIキー
+4.  **APIキーの設定**
+    プロジェクト内に`.streamlit`というフォルダを作成し、その中に`secrets.toml`というファイルを作成してください。ファイルには以下の内容を記述します。
 
-### 3. アプリケーションの実行
+    ```toml
+    # .streamlit/secrets.toml
+    HF_TOKEN = "YOUR_HUGGINGFACE_TOKEN"
+    OPENAI_API_KEY = "YOUR_OPENAI_API_KEY"
+    ```
+    *`HF_TOKEN`は[Hugging Face](https://huggingface.co/settings/tokens)で取得してください。*
+    *`pyannote/speaker-diarization-3.1`と`pyannote/segmentation-3.0`の利用規約への同意が必要です。*
+
+## 実行方法
+
+以下のコマンドを実行すると、Webブラウザでアプリケーションが起動します。
 
 ```bash
 streamlit run app.py
-```
-
-## 注意事項
-
-- 機密情報（APIキーなど）は`.streamlit/secrets.toml`に保存し、Gitにコミットしないでください
-- 音声ファイルは一時的に処理され、保存されません
-- データベースファイル（`database.db`）は自動的に作成されます
-
-## ライセンス
-
-このプロジェクトはMITライセンスの下で公開されています。 
