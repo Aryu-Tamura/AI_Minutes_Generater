@@ -1,0 +1,26 @@
+# 仮想環境
+venv/
+.venv/
+
+# Streamlitの秘密情報
+.streamlit/secrets.toml
+
+# データベースファイル
+database.db
+
+# ログファイル
+*.log
+
+# Pythonキャッシュ
+__pycache__/
+*.pyc
+
+# OS固有のファイル
+.DS_Store
+Thumbs.db
+
+# レポート保存用フォルダ
+reports/
+
+# グラフ画像の一時ファイル
+temp_chart.png
