@@ -520,3 +520,5 @@ elif st.session_state.current_page == "feedback":
             col1.metric("平均会話バランス (営業担当)", f"{avg_balance:.1f}%")
             col2.metric("平均成功確度スコア", f"{avg_score:.1f} 点")
             st.info("次の目標: クロージングの際の、もう一歩踏み込んだ提案を練習しましょう。")
+
+
