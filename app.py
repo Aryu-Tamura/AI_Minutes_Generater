@@ -443,28 +443,10 @@ if st.session_state.current_page == "creation":
 
 elif st.session_state.current_page == "history":
     st.title("過去のレポート一覧")
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    c.execute("SELECT id, report_date, sales_rep, client_company FROM reports ORDER BY timestamp DESC")
-    all_reports = c.fetchall()
-    conn.close()
-
-    if not all_reports: st.info("保存されているレポートはありません。")
     
-    for report in all_reports:
-        report_id, report_date, sales_rep, client_company = report
-        with st.container(border=True):
-            st.subheader(client_company)
-            st.write(f"担当: {sales_rep} | 日付: {report_date}")
-            if st.button("このレポートを開く", key=f"open_{report_id}"):
-                st.session_state.current_page = "viewer"
-                st.session_state.viewing_report_id = report_id
-                st.rerun()
-
-elif st.session_state.current_page == "viewer":
-    st.title("レポート閲覧")
-    report_id = st.session_state.get("viewing_report_id")
-    if report_id:
+    if 'viewing_report_id' in st.session_state and st.session_state.viewing_report_id is not None:
+        st.subheader("レポート閲覧")
+        report_id = st.session_state.get("viewing_report_id")
         conn = sqlite3.connect(DB_FILE)
         c = conn.cursor()
         c.execute("SELECT report_markdown FROM reports WHERE id = ?", (report_id,))
@@ -494,6 +476,24 @@ elif st.session_state.current_page == "viewer":
                     st.session_state.analysis_stage = "done"
                     st.session_state.current_page = "creation"
                     st.session_state.report_saved = True
+                    del st.session_state['viewing_report_id']
+                    st.rerun()
+    else:
+        conn = sqlite3.connect(DB_FILE)
+        c = conn.cursor()
+        c.execute("SELECT id, report_date, sales_rep, client_company FROM reports ORDER BY timestamp DESC")
+        all_reports = c.fetchall()
+        conn.close()
+
+        if not all_reports: st.info("保存されているレポートはありません。")
+        
+        for report in all_reports:
+            report_id, report_date, sales_rep, client_company = report
+            with st.container(border=True):
+                st.subheader(client_company)
+                st.write(f"担当: {sales_rep} | 日付: {report_date}")
+                if st.button("このレポートを開く", key=f"open_{report_id}"):
+                    st.session_state.viewing_report_id = report_id
                     st.rerun()
 
 elif st.session_state.current_page == "feedback":
