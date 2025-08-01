@@ -142,7 +142,6 @@ def get_refined_report(original_report, user_instruction):
     system_prompt = "あなたは優秀なアシスタントです。ユーザーの指示に従って、提供されたレポートを修正してください。必ずレポート全体の構造を維持したまま、指示された箇所のみを修正し、修正後のレポート全文を出力してください。"
     user_prompt = f"""
 ### 指示の例 (Few-shot)
-
 #### 元のレポート:
 ### 1. 商談概要
 * **日時**: 2025年08月01日
@@ -150,25 +149,19 @@ def get_refined_report(original_report, user_instruction):
 ### 2. 決定事項
 * Aプランを軸に検討を進めることになった。
 * 来週、セキュリティに関する詳細な説明を行うための会議を設定する。
-
 #### 修正指示:
 決定事項を箇条書きの一つにまとめてください。
-
 #### 期待される出力:
 ### 1. 商談概要
 * **日時**: 2025年08月01日
 * **出席者**: 田中、鈴木
 ### 2. 決定事項
 * Aプランを軸に検討し、来週セキュリティに関する詳細説明の会議を設定する。
-
 ---
-
 ### あなたへの指示
 上記の例を参考に、以下のレポートを次の指示に従って修正してください。
-
 ### 元のレポート:
 {original_report}
-
 ### 修正指示:
 {user_instruction}
 """
@@ -259,8 +252,7 @@ if st.session_state.current_page == "creation":
         if st.button("新しいレポートを作成する"):
             st.session_state.confirm_reset = True
     
-    if 'confirm_reset' not in st.session_state:
-        st.session_state.confirm_reset = False
+    if 'confirm_reset' not in st.session_state: st.session_state.confirm_reset = False
     
     if st.session_state.confirm_reset:
         placeholder = st.empty()
@@ -304,25 +296,32 @@ if st.session_state.current_page == "creation":
     if st.session_state.analysis_stage == 'processing':
         uploaded_file = st.session_state.get('uploaded_file')
         if uploaded_file:
-            with st.spinner("AIアシスタントが分析中です...完了まで数分かかることがあります。"):
-                audio_bytes = uploaded_file.getvalue()
-                temp_path, wav_path = None, None
+            # 【修正】進捗表示UIをst.statusに変更
+            with st.status("AIアシスタントが分析中です...", expanded=True) as status:
+                raw_transcript_text = ""
                 try:
+                    status.write("ステップ1/4: 音声ファイルを準備中...")
+                    audio_bytes = uploaded_file.getvalue()
                     with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp:
                         tmp.write(audio_bytes); temp_path = tmp.name
                     audio = AudioSegment.from_file(temp_path).set_frame_rate(16000).set_sample_width(2).set_channels(1)
                     wav_path = temp_path + ".wav"; audio.export(wav_path, format="wav")
                     
+                    status.update(label="✅ ステップ1/4: 音声ファイルを準備しました。")
+                    status.write("ステップ2/4: 話者を特定中...")
                     diarization_pipeline = Pipeline.from_pretrained("pyannote/speaker-diarization-3.1", use_auth_token=HF_TOKEN)
                     if torch.cuda.is_available(): diarization_pipeline.to(torch.device("cuda"))
                     diarization = diarization_pipeline(wav_path)
                     
+                    status.update(label="✅ ステップ2/4: 話者を特定しました。")
+                    status.write("ステップ3/4: 文字起こしを実行中...")
                     device = "cuda" if torch.cuda.is_available() else "cpu"
                     whisper_model = whisper.load_model(WHISPER_MODEL, device=device)
                     transcription_result = whisper_model.transcribe(wav_path, word_timestamps=True, language="ja")
                     
+                    status.update(label="✅ ステップ3/4: 文字起こしが完了しました。")
+                    status.write("ステップ4/4: 文字起こしと話者情報を結合中...")
                     word_timestamps = [word for segment in transcription_result['segments'] for word in segment['words']]
-                    raw_transcript_text = ""
                     if word_timestamps:
                         speaker_turns = [{'start': turn.start, 'end': turn.end, 'speaker': speaker} for turn, _, speaker in diarization.itertracks(yield_label=True)]
                         for word in word_timestamps:
@@ -336,25 +335,31 @@ if st.session_state.current_page == "creation":
                                 current_speaker, current_transcript, start_time = word['speaker'], "", word['start']
                             current_transcript += word['word']
                         raw_transcript_text += f"{current_speaker} ({format_timestamp(start_time)}): {current_transcript.strip()}\n"
+
+                    status.update(label="✅ ステップ4/4: 結合が完了しました。")
+                    status.write("GPT-4oによる最終分析中...")
+                    analysis_result = get_initial_analysis(raw_transcript_text, st.session_state.negotiation_info)
+                    
+                    if analysis_result:
+                        status.update(label="分析完了！", state="complete", expanded=False)
+                        st.session_state.analysis_data = analysis_result
+                        st.session_state.transcript_display = analysis_result.get('cleaned_transcript', [])
+                        st.session_state.analysis_stage = 'done'
+                        st.session_state.chat_history = [{"role": "assistant", "content": "レポートを生成しました。"}]
+                        st.rerun()
+                    else:
+                        status.update(label="分析失敗", state="error")
+                        st.error("分析に失敗しました。"); st.session_state.analysis_stage = 'initial'
+
                 except Exception as e:
+                    status.update(label="エラー発生", state="error")
                     st.error(f"音声処理中にエラーが発生しました: {e}")
                     logging.error(f"Error in audio processing: {e}")
                     st.session_state.analysis_stage = "initial"
-                    st.rerun()
 
                 finally:
-                    if temp_path and os.path.exists(temp_path): os.remove(temp_path)
-                    if wav_path and os.path.exists(wav_path): os.remove(wav_path)
-
-                analysis_result = get_initial_analysis(raw_transcript_text, st.session_state.negotiation_info)
-                if analysis_result:
-                    st.session_state.analysis_data = analysis_result
-                    st.session_state.transcript_display = analysis_result.get('cleaned_transcript', [])
-                    st.session_state.analysis_stage = 'done'
-                    st.session_state.chat_history = [{"role": "assistant", "content": "レポートを生成しました。"}]
-                    st.rerun()
-                else:
-                    st.error("分析に失敗しました。"); st.session_state.analysis_stage = 'initial'
+                    if 'temp_path' in locals() and temp_path and os.path.exists(temp_path): os.remove(temp_path)
+                    if 'wav_path' in locals() and wav_path and os.path.exists(wav_path): os.remove(wav_path)
 
     if st.session_state.analysis_stage == 'done':
         col1, col2 = st.columns(2)
@@ -520,5 +525,3 @@ elif st.session_state.current_page == "feedback":
             col1.metric("平均会話バランス (営業担当)", f"{avg_balance:.1f}%")
             col2.metric("平均成功確度スコア", f"{avg_score:.1f} 点")
             st.info("次の目標: クロージングの際の、もう一歩踏み込んだ提案を練習しましょう。")
-
-

@@ -13,8 +13,8 @@
 
 1.  **リポジトリをクローン**
     ```bash
-    git clone [https://github.com/](https://github.com/)[あなたのユーザー名]/[リポジトリ名].git
-    cd [リポジトリ名]
+    git clone https://github.com/Aryu-Tamura/AI_Minutes_Generater.git
+    cd AI_Minutes_Generater
     ```
 
 2.  **仮想環境の作成と有効化**
