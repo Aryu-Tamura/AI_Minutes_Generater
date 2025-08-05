@@ -4,7 +4,6 @@ openai-whisper
 torch
 pyannote.audio
 pydub
-pandas
 python-docx
 plotly
 kaleido
