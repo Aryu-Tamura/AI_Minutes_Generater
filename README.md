@@ -1,4 +1,4 @@
-# AI議事録アシスタント
+# AI交渉アシスタント
 
 商談などの音声データをアップロードすると、AIが自動で文字起こし、議事録作成、多角的な分析を行うStreamlitアプリケーションです。
 
@@ -11,24 +11,43 @@
 
 ## セットアップ手順
 
-1.  **リポジトリをクローン**
+1.  **`uv`のインストール**
+    まだ`uv`をインストールしていない場合は、以下のコマンドを実行してください。
+    * **macOS / Linux:**
+        ```bash
+        curl -LsSf [https://astral.sh/uv/install.sh](https://astral.sh/uv/install.sh) | sh
+        ```
+    * **Windows (PowerShell):**
+        ```powershell
+        irm [https://astral.sh/uv/install.ps1](https://astral.sh/uv/install.ps1) | iex
+        ```
+
+2.  **リポジトリをクローン**
     ```bash
-    git clone https://github.com/Aryu-Tamura/AI_Minutes_Generater.git
+    git clone [https://github.com/Aryu-Tamura/AI_Minutes_Generater.git](https://github.com/Aryu-Tamura/AI_Minutes_Generater.git)
     cd AI_Minutes_Generater
     ```
 
-2.  **仮想環境の作成と有効化**
+3.  **仮想環境の作成と有効化**
+    `uv`を使って仮想環境を作成し、有効化します。
     ```bash
-    python3 -m venv venv
-    source venv/bin/activate
+    # 仮想環境の作成 (.venvフォルダが生成されます)
+    uv venv
+
+    # 仮想環境の有効化
+    # macOS / Linux:
+    source .venv/bin/activate
+    # Windows (PowerShell):
+    # .venv\Scripts\Activate.ps1
     ```
 
-3.  **必要なライブラリのインストール**
+4.  **必要なライブラリのインストール**
+    `uv`を使って、`requirements.txt`から必要なライブラリを高速にインストールします。
     ```bash
-    pip install -r requirements.txt
+    uv pip install -r requirements.txt
     ```
 
-4.  **APIキーの設定**
+5.  **APIキーの設定**
     プロジェクト内に`.streamlit`というフォルダを作成し、その中に`secrets.toml`というファイルを作成してください。ファイルには以下の内容を記述します。
 
     ```toml
@@ -45,3 +64,7 @@
 
 ```bash
 streamlit run app.py
+
+
+
+
