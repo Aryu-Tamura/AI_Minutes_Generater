@@ -97,22 +97,31 @@ def get_negotiation_analysis(transcript_text, negotiation_info):
     """
     system_prompt = """
 あなたは、銀行渉外担当者のための超一流ネゴシエーション・コーチです。
-提供された商談の文字起こしを分析し、担当者の交渉スキルを多角的に評価してください。
+提供された商談の文字起こしを、以下の**理想的なセールスフロー**と**採点基準（ルーブリック）**に照らし合わせて、厳格に評価してください。
 
-あなたの最大の任務は、評価がブラックボックスにならないよう、すべての評価項目に対して、その根拠となった会話中の具体的な発言を引用して提示することです。
+### 理想的なセールスフロー
+1.  **関係構築 (Rapport Building)**
+2.  **課題発見 (Problem Discovery)**
+3.  **価値提案 (Value Proposition)**
+4.  **合意形成とクロージング (Closing)**
 
-評価は、以下の**理想的なセールスフロー**を基準に行います。
-1.  **関係構築 (Rapport Building)**: 相手を承認し、安心して話せる雰囲気を作る。
-2.  **課題発見 (Problem Discovery)**: 相手の現状と、その背景にある本質的な課題を引き出す。
-3.  **価値提案 (Value Proposition)**: 引き出した課題に対し、解決策とプラスアルファの価値を提示する。
-4.  **合意形成とクロージング (Closing)**: 次のアクションを明確にし、前向きな合意を形成する。
+### 採点基準（スコアリング・ルーブリック）
+-   **A (Excellent)**: 相手への共感や承認の言葉が豊かで、オープンな質問を通じて相手が本音を話しやすい雰囲気を作れている。
+-   **B (Good)**: 丁寧な挨拶や共感の言葉は見られるが、会話を広げるための工夫がやや不足している。
+-   **C (Average)**: 事務的なやり取りに終始し、相手の感情に寄り添う姿勢が見られない。
+-   **D (Needs Improvement)**: 一方的な発言や、相手を否定するような言動が見られ、関係構築の機会を逃している。
 
-実際の会話がこの理想的な順序と要素をどれだけ満たしているかを評価し、客観的な根拠に基づいた、誰が見ても納得できる建設的なフィードバックをJSON形式で生成してください。
+あなたの任務は、会話の文脈全体を考慮し、安易な高評価を避け、**この採点基準に厳密に従ってA〜Dの評価を下す**ことです。
+
+**【根拠引用の絶対ルール】**
+根拠となった会話は、**必ず複数人の発言を含む「会話のキャッチボール」**を引用してください。単一の発言だけを引用することは許可されません。文脈を理解する上で十分な長さのやり取りを抜き出してください。
 """
     user_prompt = f"""
 ### 指示
-以下の商談の文字起こしデータを分析し、あなたの評価とその評価に至った**根拠となる発言**を必ず引用して、指定されたJSON形式で結果を出力してください。
-また、文字起こしデータから、話者名（例：渡辺（銀行員））を特定し、cleaned_transcriptのspeakerを更新してください。
+上記の評価基準に基づき、以下の商談の文字起こしデータを分析し、各ステージの評価（A〜D）と分析内容をJSON形式で出力してください。
+
+### 話者名の特定
+営業担当者は「{negotiation_info['sales_rep']}」です。文字起こしデータ内の「SPEAKER_00」「SPEAKER_01」などを分析し、どちらが営業担当者でどちらが顧客（{negotiation_info['client_rep']}）かを判断してください。その上で、"cleaned_transcript"内の"speaker"を、実際の名前（例：「田中真奈美（営業担当）」、「藤社長」）に置き換えてください。
 
 ### 分析対象の文字起こしデータ
 ```
@@ -137,33 +146,38 @@ def get_negotiation_analysis(transcript_text, negotiation_info):
     "agenda": "（本日のアジェンダを要約）",
     "summary": [
         "（議論全体の要点を具体的に要約した1つ目の箇条書き）",
-        "（議論全体の要点を具体的に要約した2つ目の箇条書き）",
-        "（議論全体の要点を具体的に要約した3つ目の箇条書き）"
+        "（議論全体の要点を具体的に要約した2つ目の箇条書き）"
     ],
-    "decisions": ["（決定事項1）", "（決定事項2）"],
-    "todos": ["（担当者名）タスク1", "（担当者名）タスク2"],
+    "decisions": ["（決定事項1）"],
+    "todos": ["（担当者名）タスク1"],
     "concerns": ["（懸念事項1）"]
   }},
-  "overall_score": {{
-    "score": "（0〜100点の整数）",
-    "summary": "（この交渉全体の総評）"
-  }},
   "flow_narrative_analysis": {{
-    "title": "（今回の交渉全体の流れに対するタイトル）",
     "narrative_comment": "（理想的なセールスフローに沿っているかどうかの総評。物語のように解説する）",
-    "strength_point": "（特に流れが良かった点、または転換点となった発言）",
-    "weakness_point": "（流れが滞ったり、順序が不適切だった点）"
+    "strength_point": "（例：[関係構築] 相手の成功を祝福し、心理的安全性を確保した点。）",
+    "weakness_point": "（例：[価値提案] 顧客の課題解決に繋がらない一方的な商品説明に終始した点。）"
   }},
-  "sales_flow_assessment": {{
-    "rapport_building": {{ "score": "A", "comment": "...", "evidence_quote": "..." }},
-    "problem_discovery": {{ "score": "B", "comment": "...", "evidence_quote": "..." }},
-    "value_addition": {{ "score": "C", "comment": "...", "evidence_quote": "..." }},
-    "closing": {{ "score": "D", "comment": "...", "evidence_quote": "..." }}
-  }},
-  "key_learning_point": {{
-    "title": "（今回の交渉から得られる最も重要な学び）",
-    "description": "（学びの詳細な説明）",
-    "evidence_quote": "（その学びの根拠となった象徴的な会話パートを引用）"
+  "detailed_assessment": {{
+    "rapport_building": {{
+      "score": "（A〜Dの4段階評価）",
+      "comment": "（評価基準に照らした、関係構築フェーズに関する評価コメント）",
+      "evidence_quote": "（評価の根拠となった会話のまとまり全体を引用）"
+    }},
+    "problem_discovery": {{
+      "score": "（A〜Dの4段階評価）",
+      "comment": "（評価基準に照らした、課題発見フェーズに関する評価コメント）",
+      "evidence_quote": "（評価の根拠となった会話のまとまり全体を引用）"
+    }},
+    "value_addition": {{
+      "score": "（A〜Dの4段階評価）",
+      "comment": "（評価基準に照らした、価値提案フェーズに関する評価コメント）",
+      "evidence_quote": "（評価の根拠となった会話のまとまり全体を引用）"
+    }},
+    "closing": {{
+      "score": "（A〜Dの4段階評価）",
+      "comment": "（評価基準に照らした、合意形成とクロージングに関する評価コメント）",
+      "evidence_quote": "（評価の根拠となった会話のまとまり全体を引用）"
+    }}
   }}
 }}
 ```
@@ -244,56 +258,20 @@ def create_analysis_docx(analysis_data, negotiation_info, transcript_display):
     doc.add_paragraph(f"日時: {negotiation_info.get('date', 'N/A')}")
     doc.add_paragraph()
 
-    # 会話バランスの円グラフを追加
-    doc.add_heading('会話バランス', level=1)
-    our_company_name = negotiation_info.get('sales_rep', '')
-    all_speakers = list(set(item.get('speaker', '') for item in transcript_display))
-    our_speaker_label = ''
-    our_company_last_name = our_company_name.split(' ')[0][:2]
-    for speaker in all_speakers:
-        if our_company_last_name in speaker:
-            our_speaker_label = speaker
-            break
-    
-    our_company_words = 0
-    client_words = 0
-    if transcript_display:
-        for item in transcript_display:
-            word_count = len(re.findall(r'\w+', item.get('text', '')))
-            if item.get('speaker', '') == our_speaker_label and our_speaker_label:
-                our_company_words += word_count
-            else:
-                client_words += word_count
-    
-    total_words = our_company_words + client_words
-    if total_words > 0:
-        our_ratio = (our_company_words / total_words) * 100
-        client_ratio = (client_words / total_words) * 100
-        
-        fig = go.Figure(data=[go.Pie(labels=['顧客', '営業担当'], values=[client_ratio, our_ratio], hole=.3, marker_colors=['#636EFA', '#EF553B'])])
-        fig.update_traces(textinfo='percent+label', textfont_size=14, hovertemplate='<b>%{label}</b>: %{value:.1f}%<extra></extra>')
-        fig.update_layout(title_text='会話バランス', height=300, margin=dict(t=50, b=0, l=0, r=0), showlegend=False)
-        
-        chart_path = "temp_chart.png"
-        fig.write_image(chart_path, scale=2)
-        doc.add_picture(chart_path, width=Inches(5.0))
-        os.remove(chart_path)
-
     # 総合評価
-    overall = analysis_data.get('overall_score', {})
-    doc.add_heading(f"総合評価: {overall.get('score', 'N/A')}点", level=1)
-    doc.add_paragraph(overall.get('summary', ''))
+    score, score_breakdown = calculate_final_score(analysis_data, transcript_display, negotiation_info)
+    doc.add_heading(f"総合評価: {score}点", level=1)
+    doc.add_paragraph(score_breakdown.replace("\n", " / "))
     
     # 交渉全体の流れ
     narrative = analysis_data.get('flow_narrative_analysis', {})
-    doc.add_heading(f"交渉全体の流れ: {narrative.get('title', '')}", level=1)
-    doc.add_paragraph(narrative.get('narrative_comment', ''))
-    doc.add_paragraph(f"良かった点: {narrative.get('strength_point', '')}")
-    doc.add_paragraph(f"改善すべき点: {narrative.get('weakness_point', '')}")
-
+    doc.add_heading(f"交渉全体の流れ", level=1)
+    doc.add_paragraph("評価基準：本レポートでは、交渉を以下の4つのステージに分解し、各ステージの達成度を評価基準としています。\n`関係構築 → 課題発見 → 価値提案 → 合意形成とクロージング`")
+    doc.add_paragraph(f"総評: {narrative.get('narrative_comment', '')}")
+    
     # 各ステージの詳細評価
-    doc.add_heading('セールスフロー詳細評価', level=1)
-    flow = analysis_data.get('sales_flow_assessment', {})
+    doc.add_heading('交渉の詳細評価', level=1)
+    flow = analysis_data.get('detailed_assessment', {})
     stage_map = {
         "rapport_building": "関係構築", "problem_discovery": "課題発見",
         "value_addition": "価値提案", "closing": "合意形成とクロージング"
@@ -301,19 +279,8 @@ def create_analysis_docx(analysis_data, negotiation_info, transcript_display):
     for key, stage_name in stage_map.items():
         stage_data = flow.get(key, {})
         if stage_data:
-            doc.add_heading(f"{stage_name} (スコア: {stage_data.get('score', 'N/A')})", level=2)
+            doc.add_heading(f"{stage_name} (評価: {stage_data.get('score', 'N/A')})", level=2)
             doc.add_paragraph(f"コメント: {stage_data.get('comment', '')}")
-            p = doc.add_paragraph()
-            p.add_run('根拠の発言: ').bold = True
-            p.add_run(f"「{stage_data.get('evidence_quote', '')}」").italic = True
-
-    # 最も重要な学び
-    learning = analysis_data.get('key_learning_point', {})
-    doc.add_heading(f"今回の学び: {learning.get('title', '')}", level=1)
-    doc.add_paragraph(learning.get('description', ''))
-    p = doc.add_paragraph()
-    p.add_run('象徴的な会話: ').bold = True
-    p.add_run(f"「{learning.get('evidence_quote', '')}」").italic = True
 
     bio = BytesIO()
     doc.save(bio)
@@ -337,6 +304,71 @@ def save_report_to_db(negotiation_info, analysis_data, report_markdown, cleaned_
     conn.commit()
     conn.close()
     logging.info(f"Report for {negotiation_info['client_company']} saved to database.")
+
+def calculate_final_score(analysis_json, transcript_display, negotiation_info):
+    """AIの質的評価(A-D)と会話バランスから最終スコアを算出する"""
+    score_mapping = {"A": 20, "B": 15, "C": 10, "D": 5}
+    total_score = 0
+    breakdown_texts = []
+
+    assessment = analysis_json.get("detailed_assessment", {})
+    stage_map = {
+        "rapport_building": "関係構築", "problem_discovery": "課題発見",
+        "value_addition": "価値提案", "closing": "合意形成とクロージング"
+    }
+
+    for key, name in stage_map.items():
+        grade = assessment.get(key, {}).get("score")
+        points = score_mapping.get(grade, 0)
+        total_score += points
+        breakdown_texts.append(f"{name}({grade}評価): {points}点")
+
+    # 会話バランスの計算とスコアリング
+    our_company_name = negotiation_info.get('sales_rep', '')
+    all_speakers = list(set(item.get('speaker', '') for item in transcript_display))
+    our_speaker_label = ''
+    our_company_last_name = our_company_name.split(' ')[0][:2]
+    for speaker in all_speakers:
+        if our_company_last_name in speaker:
+            our_speaker_label = speaker
+            break
+    
+    our_company_words = 0
+    client_words = 0
+    if transcript_display:
+        for item in transcript_display:
+            word_count = len(re.findall(r'\w+', item.get('text', '')))
+            if item.get('speaker', '') == our_speaker_label and our_speaker_label:
+                our_company_words += word_count
+            else:
+                client_words += word_count
+    
+    total_words = our_company_words + client_words
+    balance_points = 0
+    our_ratio = 0
+    if total_words > 0:
+        our_ratio = (our_company_words / total_words) * 100
+        ideal_ratio = 25.0
+        deviation = abs(our_ratio - ideal_ratio)
+
+        if deviation <= 5:
+            balance_points = 20
+        elif deviation <= 10:
+            balance_points = 15
+        elif deviation <= 15:
+            balance_points = 10
+        elif deviation <= 20:
+            balance_points = 5
+        else:
+            balance_points = 0
+        
+        total_score += balance_points
+        deviation_display = our_ratio - ideal_ratio
+        sign = "+" if deviation_display >= 0 else ""
+        breakdown_texts.append(f"会話バランス(理想{sign}{deviation_display:.1f}%): {balance_points}点")
+    
+    score_breakdown = " + ".join(breakdown_texts)
+    return total_score, score_breakdown
 
 # -------------------------------------------------------------------
 # 5. UI描画: サイドバー
@@ -411,7 +443,15 @@ if st.session_state.current_page == "creation":
                     audio_bytes = uploaded_file.getvalue()
                     with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp:
                         tmp.write(audio_bytes); temp_path = tmp.name
-                    audio = AudioSegment.from_file(temp_path).set_frame_rate(16000).set_sample_width(2).set_channels(1)
+                    
+                    audio = AudioSegment.from_file(temp_path)
+                    if len(audio) < 3000: # 3秒未満の場合
+                        status.update(label="エラー", state="error", expanded=True)
+                        st.error("音声ファイルが短すぎます。3秒以上のファイルをアップロードしてください。")
+                        st.session_state.analysis_stage = "initial"
+                        st.stop()
+
+                    audio = audio.set_frame_rate(16000).set_sample_width(2).set_channels(1)
                     wav_path = temp_path + ".wav"; audio.export(wav_path, format="wav")
                     
                     status.update(label="✅ ステップ1/4: 音声ファイルを準備しました。")
@@ -474,6 +514,7 @@ if st.session_state.current_page == "creation":
         tab1, tab2, tab3 = st.tabs(["📝 議事録レポート", "🤖 AIコーチング", "🗣️ 全文文字起こし"])
 
         with tab1:
+            # (議事録レポートタブのUIは変更なし)
             st.subheader("対話型レポート編集")
             chat_container = st.container(height=200)
             with chat_container:
@@ -516,11 +557,37 @@ if st.session_state.current_page == "creation":
 
         with tab2:
             st.subheader("AIによる交渉分析")
-            overall = analysis_data.get('overall_score', {})
             narrative = analysis_data.get('flow_narrative_analysis', {})
-            flow = analysis_data.get('sales_flow_assessment', {})
-            learning = analysis_data.get('key_learning_point', {})
+            flow = analysis_data.get('detailed_assessment', {})
 
+            final_score, score_breakdown = calculate_final_score(analysis_data, st.session_state.transcript_display, st.session_state.negotiation_info)
+            st.metric("総合評価スコア", f"{final_score} 点", delta=score_breakdown)
+            st.markdown("---")
+            
+            st.markdown(f"##### 交渉全体の流れ")
+            st.markdown("**評価基準：** 本レポートでは、交渉を以下の4つのステージに分解し、各ステージの達成度を評価基準としています。\n`関係構築 → 課題発見 → 価値提案 → 合意形成とクロージング`")
+            st.info(f"**総評:** {narrative.get('narrative_comment', '')}")
+            st.success(f"**良かった点**: {narrative.get('strength_point', '')}")
+            st.warning(f"**改善すべき点**: {narrative.get('weakness_point', '')}")
+            st.markdown("---")
+
+            st.markdown("##### 交渉の詳細評価")
+            stage_map = {
+                "rapport_building": "関係構築", "problem_discovery": "課題発見",
+                "value_addition": "価値提案", "closing": "合意形成とクロージング"
+            }
+            for key, stage_name in stage_map.items():
+                stage_data = flow.get(key, {})
+                if stage_data:
+                    with st.expander(f"**{stage_name}** (評価: {stage_data.get('score', 'N/A')})"):
+                        st.markdown(f"**コメント:** {stage_data.get('comment', '')}")
+                        quote = stage_data.get('evidence_quote', '')
+                        formatted_quote = quote.replace('\n', '\n\n> ')
+                        st.markdown(f"**根拠となった会話:**\n> {formatted_quote}")
+            
+            st.markdown("---")
+            st.markdown("##### 会話バランス")
+            st.caption("理想の会話バランスは、営業担当者25%、顧客75％です。")
             our_company_name = st.session_state.negotiation_info.get('sales_rep', '')
             all_speakers = list(set(item.get('speaker', '') for item in st.session_state.transcript_display))
             our_speaker_label = ''
@@ -547,44 +614,18 @@ if st.session_state.current_page == "creation":
                 
                 fig = go.Figure(data=[go.Pie(labels=['顧客', '営業担当'], values=[client_ratio, our_ratio], hole=.3, marker_colors=['#636EFA', '#EF553B'])])
                 fig.update_traces(textinfo='percent+label', textfont_size=14, hovertemplate='<b>%{label}</b>: %{value:.1f}%<extra></extra>')
-                fig.update_layout(title_text='会話バランス', height=300, margin=dict(t=50, b=0, l=0, r=0), showlegend=False)
+                fig.update_layout(height=300, margin=dict(t=10, b=10, l=10, r=10), showlegend=False)
                 st.plotly_chart(fig, use_container_width=True)
 
-                if 20 <= our_ratio <= 40:
+                if 20 <= our_ratio <= 30:
                     st.success("✔️ **理想的な会話バランスです。** 顧客の話を十分に引き出し、効果的な対話ができています。")
-                elif our_ratio > 40:
+                elif our_ratio > 30:
                     st.warning("⚠️ **営業担当者の発話が多めです。** 次回は、質問を増やして顧客が話す時間を確保することを意識しましょう。")
                 else:
                     st.warning("⚠️ **顧客の話を引き出す余地があります。** オープンな質問を投げかけ、より積極的に対話をリードしましょう。")
 
-
-            st.metric("総合評価スコア", f"{overall.get('score', 'N/A')} 点", delta=overall.get('summary', ''))
-            st.markdown("---")
-            
-            st.markdown(f"##### 交渉全体の流れ： {narrative.get('title', '')}")
-            st.info(narrative.get('narrative_comment', ''))
-            st.success(f"**良かった点**: {narrative.get('strength_point', '')}")
-            st.warning(f"**改善すべき点**: {narrative.get('weakness_point', '')}")
-            st.markdown("---")
-
-            st.markdown("##### セールスフロー詳細評価")
-            stage_map = {
-                "rapport_building": "関係構築", "problem_discovery": "課題発見",
-                "value_addition": "価値提案", "closing": "合意形成とクロージング"
-            }
-            for key, stage_name in stage_map.items():
-                stage_data = flow.get(key, {})
-                if stage_data:
-                    with st.expander(f"**{stage_name}** (スコア: {stage_data.get('score', 'N/A')})"):
-                        st.markdown(f"**コメント:** {stage_data.get('comment', '')}")
-                        st.markdown(f"**根拠の発言:** *「{stage_data.get('evidence_quote', '')}」*")
-            
-            st.markdown("---")
-            st.markdown(f"##### 今回の学び： {learning.get('title', '')}")
-            st.info(f"{learning.get('description', '')}\n\n**象徴的な会話:** *「{learning.get('evidence_quote', '')}」*")
-
-
         with tab3:
+            # (全文文字起こしタブのUIは変更なし)
             st.subheader("全文文字起こし")
             transcript_container = st.container(height=600)
             with transcript_container:
@@ -608,6 +649,7 @@ if st.session_state.current_page == "creation":
 
 
 elif st.session_state.current_page == "history":
+    # (過去のレポートページのUIは変更なし)
     st.title("過去のレポート一覧")
     
     if 'viewing_report_id' in st.session_state and st.session_state.viewing_report_id is not None:
@@ -674,26 +716,24 @@ elif st.session_state.current_page == "feedback":
     if selected_name:
         conn = sqlite3.connect(DB_FILE)
         c = conn.cursor()
-        c.execute("SELECT analysis_json, report_date, client_company FROM reports WHERE sales_rep = ? ORDER BY timestamp DESC", (selected_name,))
+        c.execute("SELECT analysis_json, report_date, client_company, cleaned_transcript FROM reports WHERE sales_rep = ? ORDER BY timestamp DESC", (selected_name,))
         user_reports_data = c.fetchall()
         conn.close()
         
         if not user_reports_data:
             st.warning(f"{selected_name}さんのレポートは見つかりませんでした。")
         else:
-            user_reports = [json.loads(r[0]) for r in user_reports_data]
-            # 【バグ修正】スコアを文字列から数値に変換して計算
-            scores = [r.get('overall_score', {}).get('score', '0') for r in user_reports]
-            valid_scores = []
-            for s in scores:
-                try:
-                    valid_scores.append(int(s))
-                except (ValueError, TypeError):
-                    continue
+            total_scores = []
+            for report in user_reports_data:
+                analysis_data = json.loads(report[0])
+                transcript_display = json.loads(report[3]) if report[3] else []
+                negotiation_info_feedback = {"sales_rep": selected_name}
+                score, _ = calculate_final_score(analysis_data, transcript_display, negotiation_info_feedback)
+                total_scores.append(score)
 
-            if valid_scores:
-                avg_score = sum(valid_scores) / len(valid_scores)
-                st.success(f"{len(user_reports)}件の商談データに基づき、フィードバックを生成しました。")
+            if total_scores:
+                avg_score = sum(total_scores) / len(total_scores)
+                st.success(f"{len(user_reports_data)}件の商談データに基づき、フィードバックを生成しました。")
                 st.metric("平均総合評価スコア", f"{avg_score:.1f} 点")
                 
                 if avg_score >= 80:
@@ -713,11 +753,7 @@ elif st.session_state.current_page == "feedback":
                 report_date = report_data[1]
                 client_company = report_data[2]
                 
-                overall = analysis_data.get('overall_score', {})
                 narrative = analysis_data.get('flow_narrative_analysis', {})
-                learning = analysis_data.get('key_learning_point', {})
-
-                with st.expander(f"**{report_date}** - **{client_company}様** (スコア: {overall.get('score', 'N/A')})"):
-                    st.markdown(f"**交渉の要約:** {overall.get('summary', 'N/A')}")
+                
+                with st.expander(f"**{report_date}** - **{client_company}様**"):
                     st.markdown(f"**交渉の流れ:** {narrative.get('narrative_comment', 'N/A')}")
-                    st.markdown(f"**今回の学び:** {learning.get('title', 'N/A')}")
